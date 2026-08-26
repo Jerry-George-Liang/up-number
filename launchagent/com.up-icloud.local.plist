@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>LAN_ACCESS_ENABLED</key>
+		<string>true</string>
+		<key>LAN_ALLOWED_CIDR</key>
+		<string>192.168.50.0/24</string>
+		<key>LAN_HOST</key>
+		<string>192.168.50.218</string>
+		<key>LAN_PROTOCOL</key>
+		<string>http</string>
+		<key>LAN_TLS_CERT_FILE</key>
+		<string>/Users/lkj/Library/Application Support/up-icloud/lan-tls/server-cert.pem</string>
+		<key>LAN_TLS_KEY_FILE</key>
+		<string>/Users/lkj/Library/Application Support/up-icloud/lan-tls/server-key.pem</string>
+	</dict>
+	<key>KeepAlive</key>
+	<true/>
+	<key>Label</key>
+	<string>com.up-icloud.local</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/local/bin/node</string>
+		<string>dist/server/index.js</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>/tmp/up-icloud-service.log</string>
+	<key>StandardOutPath</key>
+	<string>/tmp/up-icloud-service.log</string>
+	<key>ThrottleInterval</key>
+	<integer>10</integer>
+	<key>WorkingDirectory</key>
+	<string>/Users/lkj/Desktop/working/up-icould/helper</string>
+</dict>
+</plist>

@@ -1,0 +1,11 @@
+{
+  "messages": [
+    {
+      "id": "message-json-1",
+      "from": "OpenAI <no-reply@openai.com>",
+      "subject": "Your ChatGPT verification code",
+      "received_at": "2026-08-11T08:00:04.000Z",
+      "text": "Use verification code 246810 to continue signing in."
+    }
+  ]
+}
