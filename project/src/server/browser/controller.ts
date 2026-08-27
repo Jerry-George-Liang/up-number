@@ -779,6 +779,10 @@ class PlaywrightOAuthSession implements OAuthBrowserSession {
     })
   }
 
+  async bringToFront(): Promise<void> {
+    await this.currentPage().bringToFront()
+  }
+
   async submitEmail(
     email: string,
     preferredLogin: 'email_otp' | 'password',

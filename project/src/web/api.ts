@@ -59,6 +59,17 @@ export interface AccountPoolPortalConnectInput {
 }
 
 export type PoolConnectionMode = 'account_pool' | 'provisioning_agent'
+export interface TeamWorkflowState {
+  status: 'idle' | 'running' | 'completed' | 'failed'
+  stage: string
+  accounts: number
+  codes: number
+  reauthorized: number
+  downloaded: number
+  deleted: number
+  message: string
+  outputDirectory: string | null
+}
 
 export interface PoolConnectionModeStatus {
   mode: PoolConnectionMode
@@ -92,6 +103,34 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const localApi = {
+  teamWorkflow(): Promise<TeamWorkflowState> {
+    return request('/local-api/team/workflow')
+  },
+  startTeamWorkflow(): Promise<TeamWorkflowState> {
+    return request('/local-api/team/workflow', { method: 'POST' })
+  },
+  redeemTeamCodes(cardCodes: string[], format: 'sub2api' | 'cpa'): Promise<unknown> {
+    return request('/local-api/team/redeem', { method: 'POST', body: JSON.stringify({ cardCodes, format }) })
+  },
+  teamHistory(cardCodes: string[]): Promise<unknown> {
+    return request('/local-api/team/history', { method: 'POST', body: JSON.stringify({ cardCodes }) })
+  },
+  teamHealthCheck(cardCodes: string[]): Promise<unknown> {
+    return request('/local-api/team/health-check', { method: 'POST', body: JSON.stringify({ cardCodes }) })
+  },
+  reclaimTeamCodes(cardCodes: string[], mode: '401' | 'all', queryOnly = false): Promise<unknown> {
+    return request('/local-api/team/reclaim', { method: 'POST', body: JSON.stringify({ cardCodes, mode, queryOnly }) })
+  },
+  async downloadTeamOrder(orderNo: string, token: string): Promise<Blob> {
+    const response = await fetch('/local-api/team/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+      credentials: 'same-origin',
+      body: JSON.stringify({ orderNo, token }),
+    })
+    if (!response.ok) throw new Error(`下载失败（HTTP ${response.status}）。`)
+    return response.blob()
+  },
   async initializeSession(): Promise<PublicBackendSession> {
     const payload = await request<{ csrfToken: string; session: PublicBackendSession }>('/local-api/session')
     csrfToken = payload.csrfToken
@@ -190,6 +229,9 @@ export const localApi = {
     maxUsage7dPercent = 90,
     importedWithinDays?: number,
     includeExcluded = false,
+    supplier?: string,
+    importedAfter?: string,
+    importedBefore?: string,
   ): Promise<ReauthorizationAccountPage> {
     const query = new URLSearchParams({
       search,
@@ -198,6 +240,9 @@ export const localApi = {
       maxUsage7dPercent: String(maxUsage7dPercent),
     })
     if (importedWithinDays !== undefined) query.set('importedWithinDays', String(importedWithinDays))
+    if (supplier) query.set('supplier', supplier)
+    if (importedAfter) query.set('importedAfter', importedAfter)
+    if (importedBefore) query.set('importedBefore', importedBefore)
     query.set('includeExcluded', String(includeExcluded))
     return request(`/local-api/reauthorization/accounts?${query.toString()}`)
   },

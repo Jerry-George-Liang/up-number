@@ -311,7 +311,7 @@ export class TaskOrchestrator {
   readonly #totp: Pick<TotpGenerator, 'next'>
   readonly #authorizationUrls = new Map<string, string>()
   #active:
-    | { id: string; machine: TaskStateMachine; abortController: AbortController; takeover: ManualTakeoverGate }
+    | { id: string; machine: TaskStateMachine; abortController: AbortController; takeover: ManualTakeoverGate; browserSession?: OAuthBrowserSession }
     | undefined
   #externalReservation: ExternalExecutionReservation | undefined
 
@@ -515,6 +515,8 @@ export class TaskOrchestrator {
       throw new AppError('TASK_TAKEOVER_NOT_ALLOWED', '当前阶段不能人工接管。', { statusCode: 409 })
     }
     this.#active.takeover.takeOver()
+    const bringToFront = this.#active.browserSession?.bringToFront
+    if (typeof bringToFront === 'function') void bringToFront.call(this.#active.browserSession).catch(() => undefined)
     return this.#active.machine.update({
       manualTakeover: true,
       message: '人工接管中，自动化已在安全操作边界暂停。完成手动操作后请点击“取消接管”。',
@@ -527,6 +529,8 @@ export class TaskOrchestrator {
     }
     if (!this.#active.takeover.active) return this.#active.machine.current
     this.#active.takeover.release()
+    const bringToFront = this.#active.browserSession?.bringToFront
+    if (typeof bringToFront === 'function') void bringToFront.call(this.#active.browserSession).catch(() => undefined)
     return this.#active.machine.update({
       manualTakeover: false,
       message: '已取消人工接管，正在从当前页面继续自动流程。',
@@ -900,6 +904,7 @@ export class TaskOrchestrator {
       let authorizationAttempt = 1
       let { generated, session: activeBrowserSession } = await startAuthorizationWithProxyRetries(authorizationAttempt)
       browserSession = activeBrowserSession
+      if (this.#active?.id === machine.current.id) this.#active.browserSession = activeBrowserSession
 
       const preferredLogin = loginMaterial.kind === 'email_otp' ? 'email_otp' : 'password'
       let manualWait:
@@ -1199,6 +1204,7 @@ export class TaskOrchestrator {
             generated = retryAttempt.generated
             activeBrowserSession = retryAttempt.session
             browserSession = activeBrowserSession
+            if (this.#active?.id === machine.current.id) this.#active.browserSession = activeBrowserSession
             continue
           }
           return await this.finishConfirmedDeactivation(

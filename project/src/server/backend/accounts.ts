@@ -39,6 +39,7 @@ const backendAccountSchema = z
     name: z.string().min(1),
     notes: z.string().nullish(),
     status: z.string().min(1),
+    supplier: z.string().nullish(),
     management_status: z.string().min(1).optional(),
     platform: z.string().optional(),
     type: z.string().optional(),
@@ -107,6 +108,7 @@ export interface ExchangeCodeInput {
 }
 
 export interface BackendAccount extends AccountResult {
+  supplier?: string
   notes?: string
   managementStatus?: string
   platform?: string
@@ -136,6 +138,9 @@ export interface ReauthorizationAccountQuery {
   pageSize: number
   maxUsage7dPercent: number
   importedWithinDays?: number
+  supplier?: string
+  importedAfter?: string
+  importedBefore?: string
   excludedAccountIds?: readonly number[]
 }
 
@@ -200,6 +205,7 @@ function normalizeAccount(payload: unknown): BackendAccount {
     id: parsed.id,
     name: parsed.name,
     ...(parsed.notes != null ? { notes: parsed.notes } : {}),
+    ...(parsed.supplier ? { supplier: parsed.supplier } : {}),
     status: parsed.status,
     ...(parsed.management_status ? { managementStatus: parsed.management_status } : {}),
     ...(parsed.platform ? { platform: parsed.platform } : {}),
@@ -559,13 +565,18 @@ export class BackendAccountsApi {
     const importedCutoff = query.importedWithinDays === undefined
       ? null
       : Date.now() - query.importedWithinDays * 24 * 60 * 60 * 1_000
-    const timeFilteredAccounts = importedCutoff === null
-      ? accounts
-      : accounts.filter((account) => {
+    const importedAfter = query.importedAfter ? Date.parse(query.importedAfter) : null
+    const importedBefore = query.importedBefore ? Date.parse(query.importedBefore) : null
+    const timeFilteredAccounts = accounts.filter((account) => {
+          if (query.supplier && account.supplier !== query.supplier) return false
           const importedAt = account.createdAt ?? account.updatedAt
+          if (importedCutoff === null && importedAfter === null && importedBefore === null) return true
           if (!importedAt) return false
           const timestamp = Date.parse(importedAt)
-          return !Number.isNaN(timestamp) && timestamp >= importedCutoff
+          return !Number.isNaN(timestamp)
+            && (importedCutoff === null || timestamp >= importedCutoff)
+            && (importedAfter === null || timestamp >= importedAfter)
+            && (importedBefore === null || timestamp <= importedBefore)
         })
 
     const hydrated = await mapWithConcurrency(
@@ -599,6 +610,9 @@ export class BackendAccountsApi {
       query.search.trim().toLowerCase(),
       query.maxUsage7dPercent,
       query.importedWithinDays ?? null,
+      query.supplier ?? null,
+      query.importedAfter ?? null,
+      query.importedBefore ?? null,
     ])
     let entry = this.reauthorizationListCache.get(cacheKey)
     if (!entry) {
@@ -633,6 +647,15 @@ export class BackendAccountsApi {
       total,
       pages,
     }
+  }
+
+  async deleteAccounts(accountIds: readonly number[]): Promise<void> {
+    const ids = [...new Set(accountIds)].filter((id) => Number.isInteger(id) && id > 0)
+    if (ids.length === 0) return
+    await this.backend.request('admin/accounts/batch-delete', {
+      method: 'POST',
+      body: { account_ids: ids },
+    })
   }
 
   async getReauthorizationTarget(id: number): Promise<BackendAccount> {

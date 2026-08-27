@@ -62,6 +62,7 @@ export interface StartBrowserInput {
 }
 
 export interface OAuthBrowserSession {
+  bringToFront?(): Promise<void>
   submitEmail(
     email: string,
     preferredLogin: 'email_otp' | 'password',

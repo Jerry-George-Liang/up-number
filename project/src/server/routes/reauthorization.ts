@@ -23,6 +23,9 @@ const listQuerySchema = z
       .max(100)
       .default(DEFAULT_REAUTHORIZATION_MAX_7D_USED_PERCENT),
     importedWithinDays: z.coerce.number().int().min(1).max(365).optional(),
+    supplier: z.string().trim().min(1).max(200).optional(),
+    importedAfter: z.iso.datetime().optional(),
+    importedBefore: z.iso.datetime().optional(),
     includeExcluded: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   })
   .strict()
@@ -50,6 +53,9 @@ export interface ReauthorizationRoutesAdapter {
     pageSize: number
     maxUsage7dPercent: number
     importedWithinDays?: number
+    supplier?: string
+    importedAfter?: string
+    importedBefore?: string
     includeExcluded: boolean
   }): Promise<ReauthorizationAccountPage>
   getAccount(accountId: number, maxUsage7dPercent: number): Promise<ReauthorizationAccountSummary>
@@ -80,6 +86,9 @@ export function registerReauthorizationRoutes(
       ...(query.importedWithinDays === undefined
         ? {}
         : { importedWithinDays: query.importedWithinDays }),
+      ...(query.supplier ? { supplier: query.supplier } : {}),
+      ...(query.importedAfter ? { importedAfter: query.importedAfter } : {}),
+      ...(query.importedBefore ? { importedBefore: query.importedBefore } : {}),
       includeExcluded: query.includeExcluded,
     })
   })

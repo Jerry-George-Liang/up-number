@@ -28,6 +28,8 @@ import { registerProvisioningAgentRoutes } from './routes/provisioning-agent'
 import type { ProvisioningAgentController } from './agent/types'
 import type { AccountPoolPortalService } from './account-pool/portal'
 import type { PoolConnectionModeService } from './pool-connection/mode'
+import { registerTeamRoutes } from './routes/team'
+import type { TeamWorkflowService } from './team/workflow'
 import {
   registerReauthorizationRoutes,
   type ReauthorizationRoutesAdapter,
@@ -60,6 +62,7 @@ export interface LocalAppDependencies {
   provisioningAgent?: ProvisioningAgentController
   accountPoolPortal?: AccountPoolPortalService
   poolConnectionMode?: PoolConnectionModeService
+  teamWorkflow?: TeamWorkflowService
   webRoot?: string
 }
 
@@ -304,6 +307,7 @@ export function buildApp(
   registerOptionsRoutes(app, dependencies.options)
   registerReauthorizationRoutes(app, dependencies.reauthorization)
   registerTaskRoutes(app, dependencies.orchestrator, dependencies.tasks)
+  if (dependencies.teamWorkflow) registerTeamRoutes(app, dependencies.teamWorkflow)
   if (dependencies.provisioningAgent) {
     registerProvisioningAgentRoutes(app, dependencies.provisioningAgent, dependencies.poolConnectionMode)
   }

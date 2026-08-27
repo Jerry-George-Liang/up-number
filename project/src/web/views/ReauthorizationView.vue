@@ -24,6 +24,10 @@ const props = defineProps<{
   accounts: ReauthorizationAccountPage | null
   search: string
   importedWithinDays: number | null
+  suppliers: string[]
+  supplier: string
+  importedAfter: string
+  importedBefore: string
   authenticated: boolean
   task: PublicTask | null
   busy: boolean
@@ -34,7 +38,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  loadAccounts: [input: { search: string; page: number; pageSize?: number; importedWithinDays?: number | null; includeExcluded?: boolean }]
+  loadAccounts: [input: { search: string; page: number; pageSize?: number; importedWithinDays?: number | null; includeExcluded?: boolean; supplier?: string; importedAfter?: string; importedBefore?: string }]
   toggleAccount: [account: ReauthorizationAccountSummary]
   saveDisposition: [input: { account: ReauthorizationAccountSummary; note: string; excluded: boolean }]
   saveBulkDisposition: [input: { note: string; excluded: boolean }]
@@ -118,6 +122,9 @@ const importedTimePreset = ref(
 const customImportedDays = ref(String(props.importedWithinDays ?? 7))
 const importedTimeError = ref('')
 const showExcludedAccounts = ref(false)
+const supplierDraft = ref(props.supplier)
+const importedAfterDraft = ref(props.importedAfter ? props.importedAfter.slice(0, 16) : '')
+const importedBeforeDraft = ref(props.importedBefore ? props.importedBefore.slice(0, 16) : '')
 const dispositionAccount = ref<ReauthorizationAccountSummary | null>(null)
 const visibleAccounts = computed(() =>
   props.accounts?.items ?? [],
@@ -129,6 +136,23 @@ function toggleExcludedAccounts() {
     page: 1,
     importedWithinDays: props.importedWithinDays,
     includeExcluded: showExcludedAccounts.value,
+    supplier: supplierDraft.value,
+    importedAfter: props.importedAfter,
+    importedBefore: props.importedBefore,
+  })
+}
+
+function applyExtendedFilters(): void {
+  const after = importedAfterDraft.value ? new Date(importedAfterDraft.value).toISOString() : ''
+  const before = importedBeforeDraft.value ? new Date(importedBeforeDraft.value).toISOString() : ''
+  emit('loadAccounts', {
+    search: searchDraft.value,
+    page: 1,
+    importedWithinDays: props.importedWithinDays,
+    includeExcluded: showExcludedAccounts.value,
+    supplier: supplierDraft.value,
+    importedAfter: after,
+    importedBefore: before,
   })
 }
 const bulkDisposition = ref(false)
@@ -329,8 +353,23 @@ function saveDisposition() {
       </div>
 
       <div class="reauthorization-filters">
+        <label class="reauthorization-filter-field">
+          <span>账号状态</span>
+          <select disabled><option>错误</option></select>
+        </label>
+        <label class="reauthorization-filter-field">
+          <span>供应商</span>
+          <select v-model="supplierDraft" :disabled="busy || accountsLoading" @change="applyExtendedFilters">
+            <option value="">全部供应商</option>
+            <option v-for="item in suppliers" :key="item" :value="item">{{ item }}</option>
+          </select>
+        </label>
+        <label class="reauthorization-filter-field">
+          <span>用量窗口</span>
+          <select disabled><option>7 天</option></select>
+        </label>
         <label class="reauthorization-threshold">
-          <span>7 天用量上限</span>
+          <span>用量 ≤</span>
           <input
             v-model="thresholdDraft"
             name="maxUsage7dPercent"
@@ -377,6 +416,14 @@ function saveDisposition() {
           />
           <span v-if="importedTimePreset === 'custom'" class="custom-time-unit">天内</span>
           <small v-if="importedTimeError">{{ importedTimeError }}</small>
+        </label>
+        <label class="reauthorization-filter-field">
+          <span>导入时间起点（精确到秒）</span>
+          <input v-model="importedAfterDraft" type="datetime-local" step="1" :disabled="busy || accountsLoading" @change="applyExtendedFilters" />
+        </label>
+        <label class="reauthorization-filter-field">
+          <span>导入时间终点（精确到秒）</span>
+          <input v-model="importedBeforeDraft" type="datetime-local" step="1" :disabled="busy || accountsLoading" @change="applyExtendedFilters" />
         </label>
         <form class="reauthorization-search" role="search" @submit.prevent="submitSearch">
           <input

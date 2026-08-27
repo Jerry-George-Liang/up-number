@@ -1,3 +1,3 @@
-2026/08/26-13:25:38.030 e45d6d Reusing MANIFEST /Users/lkj/Library/Application Support/up-icloud/account-pool-profile/Default/Local Storage/leveldb/MANIFEST-000001
-2026/08/26-13:25:38.032 e45d6d Recovering log #3
-2026/08/26-13:25:38.032 e45d6d Reusing old log /Users/lkj/Library/Application Support/up-icloud/account-pool-profile/Default/Local Storage/leveldb/000003.log 
+2026/08/27-12:56:05.620 f8c582 Reusing MANIFEST /Users/lkj/Library/Application Support/up-icloud/account-pool-profile/Default/Local Storage/leveldb/MANIFEST-000001
+2026/08/27-12:56:05.997 f8c582 Recovering log #3
+2026/08/27-12:56:06.001 f8c582 Reusing old log /Users/lkj/Library/Application Support/up-icloud/account-pool-profile/Default/Local Storage/leveldb/000003.log 

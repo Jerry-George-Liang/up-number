@@ -30,6 +30,7 @@ import { ProvisioningAgentClient } from './agent/client'
 import { RoutedAccountPoolResolver } from './agent/material-resolver'
 import { PoolConnectionModeService } from './pool-connection/mode'
 import type { ReauthorizationAccountSummary } from '../shared/contracts'
+import { TeamWorkflowService } from './team/workflow'
 
 async function main(): Promise<void> {
   const config = loadConfig()
@@ -107,6 +108,24 @@ async function main(): Promise<void> {
     cancelTask: (id) => orchestrator.cancel(id),
   })
   await reauthorizationHosting.restore()
+  const teamWorkflow = new TeamWorkflowService({
+    outputDirectory: `${config.appDataDir}/team-downloads`,
+    listAccounts: (page) => accounts.listReauthorizationAccounts({
+      search: 'team-',
+      page,
+      pageSize: 100,
+      maxUsage7dPercent: 100,
+    }),
+    startReauthorization: (account) => orchestrator.startReauthorization({
+      accountId: account.id,
+      accountEmail: account.email,
+      maxUsage7dPercent: 100,
+      proxyMode: 'existing',
+      loginMaterialSource: 'account_pool',
+    }),
+    waitForCompletion: (taskId) => orchestrator.waitForCompletion(taskId),
+    deleteAccounts: (ids) => accounts.deleteAccounts(ids),
+  })
   const provisioningAgent = new ProvisioningAgentClient({
     credentials: new KeychainCredentialStore('up-icloud.provisioning-agent'),
     settings: database,
@@ -232,6 +251,7 @@ async function main(): Promise<void> {
     accountPoolPortal,
     provisioningAgent,
     poolConnectionMode,
+    teamWorkflow,
     webRoot: config.webRoot,
   }
   const localApp = buildApp({

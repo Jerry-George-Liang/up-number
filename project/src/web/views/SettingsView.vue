@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { ArrowLeft, ArrowLeftRight, Eye, EyeOff, KeyRound, Link, LockKeyhole, LogIn, LogOut, Pencil, Plus, RefreshCw, Save, Trash2, Unplug, X } from '@lucide/vue'
+import { ArrowLeft, Eye, EyeOff, KeyRound, Link, LockKeyhole, LogIn, LogOut, Pencil, Plus, RefreshCw, Save, Trash2, Unplug, X } from '@lucide/vue'
 import type { DeactivationSettings, MailboxTrustSettings } from '../../shared/contracts'
 import type {
   AccountPoolPortalConnectInput,
@@ -405,15 +405,6 @@ onBeforeUnmount(() => {
               : '只连接账号池数据，不包含上号系统或执行设备' }}
           </span>
         </div>
-        <button
-          class="secondary-button pool-mode-switch-button"
-          type="button"
-          :disabled="modeSwitchDisabled || !poolConnectionMode"
-          @click="switchPoolConnectionMode"
-        >
-          <ArrowLeftRight :size="17" />
-          {{ poolConnectionMode === 'provisioning_agent' ? '切换到纯号池' : '切换到中央执行助手' }}
-        </button>
       </div>
 
       <template v-if="poolConnectionMode === 'account_pool'">

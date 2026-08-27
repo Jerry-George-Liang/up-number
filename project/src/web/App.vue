@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { ClipboardList, RefreshCw, RotateCw, Settings, UserPlus } from '@lucide/vue'
+import { ClipboardList, RefreshCw, RotateCw, Settings, UserPlus, Users } from '@lucide/vue'
 import type {
   CreateTaskInput,
   DeactivationSettings,
@@ -38,8 +38,9 @@ import HistoryView from './views/HistoryView.vue'
 import ReauthorizationView from './views/ReauthorizationView.vue'
 import SettingsView from './views/SettingsView.vue'
 import TaskView from './views/TaskView.vue'
+import TeamView from './views/TeamView.vue'
 
-type ViewName = 'task' | 'reauthorization' | 'history' | 'settings'
+type ViewName = 'task' | 'reauthorization' | 'team' | 'history' | 'settings'
 
 const view = ref<ViewName>('task')
 const navOpen = ref(false)
@@ -60,6 +61,9 @@ const activeTask = ref<PublicTask | null>(null)
 const reauthorizationAccounts = ref<ReauthorizationAccountPage | null>(null)
 const reauthorizationSearch = ref('')
 const reauthorizationImportedWithinDays = ref<number | null>(null)
+const reauthorizationSupplier = ref('')
+const reauthorizationImportedAfter = ref('')
+const reauthorizationImportedBefore = ref('')
 const reauthorizationPageSize = ref(20)
 const selectedReauthorizationAccounts = ref<ReauthorizationAccountSummary[]>([])
 const reauthorizationAccountsLoading = ref(false)
@@ -73,6 +77,7 @@ const reauthorizationCredentialMemory = createReauthorizationCredentialMemory()
 const reauthorizationAccountsRequests = createLatestRequestGuard()
 let closeEvents: (() => void) | undefined
 let agentStatusTimer: ReturnType<typeof globalThis.setInterval> | undefined
+let accountPoolLoginTimer: ReturnType<typeof globalThis.setInterval> | undefined
 let reauthorizationHostingTimer: ReturnType<typeof globalThis.setInterval> | undefined
 const REAUTHORIZATION_CACHE_KEY = 'up-icloud.reauthorization.accounts.v1'
 
@@ -283,6 +288,9 @@ async function loadReauthorizationAccounts(input: {
   maxUsage7dPercent?: number
   importedWithinDays?: number | null
   includeExcluded?: boolean
+  supplier?: string
+  importedAfter?: string
+  importedBefore?: string
 }): Promise<boolean> {
   if (!session.value.authenticated) return false
   const requestId = reauthorizationAccountsRequests.begin()
@@ -296,6 +304,9 @@ async function loadReauthorizationAccounts(input: {
       ? reauthorizationImportedWithinDays.value
       : input.importedWithinDays
     reauthorizationImportedWithinDays.value = importedWithinDays
+    if (input.supplier !== undefined) reauthorizationSupplier.value = input.supplier
+    if (input.importedAfter !== undefined) reauthorizationImportedAfter.value = input.importedAfter
+    if (input.importedBefore !== undefined) reauthorizationImportedBefore.value = input.importedBefore
     const pageSize = input.pageSize ?? reauthorizationPageSize.value
     reauthorizationPageSize.value = pageSize
     if (input.includeExcluded !== undefined) reauthorizationIncludeExcluded.value = input.includeExcluded
@@ -306,6 +317,9 @@ async function loadReauthorizationAccounts(input: {
       threshold,
       importedWithinDays ?? undefined,
       reauthorizationIncludeExcluded.value,
+      reauthorizationSupplier.value || undefined,
+      reauthorizationImportedAfter.value || undefined,
+      reauthorizationImportedBefore.value || undefined,
     )
     if (!reauthorizationAccountsRequests.isLatest(requestId)) return false
     reauthorizationAccounts.value = page
@@ -823,6 +837,24 @@ async function refreshProvisioningAgentStatus() {
   }
 }
 
+async function refreshAccountPoolLogin(): Promise<void> {
+  const portal = accountPoolPortal.value
+  if (loading.value || actionBusy.value || !portal?.configured || portal.connected || !portal.origin) return
+  try {
+    accountPoolPortal.value = await localApi.connectAccountPoolPortal({
+      origin: portal.origin,
+      foreground: false,
+      reuseOnly: true,
+    })
+    if (accountPoolPortal.value.connected && accountPoolLoginTimer) {
+      globalThis.clearInterval(accountPoolLoginTimer)
+      accountPoolLoginTimer = undefined
+    }
+  } catch {
+    // Login may not be complete yet. The next retry reuses the same browser session.
+  }
+}
+
 async function deleteTask(id: string) {
   try {
     await localApi.deleteTask(id)
@@ -836,6 +868,8 @@ onMounted(() => {
   if (!redirectLocalhostToCanonicalOrigin()) {
     void initialize()
     agentStatusTimer = globalThis.setInterval(() => void refreshProvisioningAgentStatus(), 10_000)
+    accountPoolLoginTimer = globalThis.setInterval(() => void refreshAccountPoolLogin(), 2_000)
+    void refreshAccountPoolLogin()
     void refreshReauthorizationHosting()
     reauthorizationHostingTimer = globalThis.setInterval(() => void refreshReauthorizationHosting(), 2_000)
   }
@@ -843,6 +877,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   closeEvents?.()
   if (agentStatusTimer) globalThis.clearInterval(agentStatusTimer)
+  if (accountPoolLoginTimer) globalThis.clearInterval(accountPoolLoginTimer)
   if (reauthorizationHostingTimer) globalThis.clearInterval(reauthorizationHostingTimer)
 })
 </script>
@@ -860,6 +895,9 @@ onBeforeUnmount(() => {
           </button>
           <button :class="{ active: view === 'reauthorization' }" type="button" @click="selectView('reauthorization')">
             <RotateCw :size="19" />重新授权
+          </button>
+          <button :class="{ active: view === 'team' }" type="button" @click="selectView('team')">
+            <Users :size="19" />Team
           </button>
           <button :class="{ active: view === 'history' }" type="button" @click="selectView('history')">
             <ClipboardList :size="19" />任务记录
@@ -908,6 +946,10 @@ onBeforeUnmount(() => {
         :accounts="reauthorizationAccounts"
         :search="reauthorizationSearch"
         :imported-within-days="reauthorizationImportedWithinDays"
+        :suppliers="options?.suppliers ?? []"
+        :supplier="reauthorizationSupplier"
+        :imported-after="reauthorizationImportedAfter"
+        :imported-before="reauthorizationImportedBefore"
         :authenticated="session.authenticated"
         :task="activeTask"
         :busy="workflowBusy"
@@ -932,6 +974,7 @@ onBeforeUnmount(() => {
         @stop-hosting="stopReauthorizationHosting"
         @skip-current-hosting="skipCurrentReauthorizationHosting"
       />
+      <TeamView v-else-if="view === 'team'" />
       <HistoryView v-else-if="view === 'history'" :tasks="tasks" @delete="deleteTask" />
       <SettingsView
         v-else
